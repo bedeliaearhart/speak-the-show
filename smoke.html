@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MOLTEN smoke test</title>
+<style>
+  body { font: 16px system-ui, sans-serif; margin: 16px; background: #111; color: #eee; }
+  button { font-size: 18px; padding: 12px 16px; margin: 6px 0; width: 100%; }
+  pre { white-space: pre-wrap; background: #222; padding: 8px; }
+  model-viewer { width: 100%; height: 320px; background: #222; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+</head>
+<body>
+<h1>Smoke test</h1>
+<button id="ping">1. Check server keys and Claude</button>
+<pre id="pingOut">not run</pre>
+<button id="mic">2. Test mic (say anything)</button>
+<pre id="micOut">not run</pre>
+<button id="box">3. Build a 1 m test box for AR</button>
+<model-viewer id="mv" ar ar-modes="webxr scene-viewer quick-look" camera-controls ar-scale="fixed"></model-viewer>
+<pre id="arOut">Build the box, then tap the AR icon in the viewer.</pre>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+
+document.getElementById('ping').onclick = async () => {
+  const out = document.getElementById('pingOut');
+  out.textContent = 'checking...';
+  try { out.textContent = JSON.stringify(await (await fetch('/api/ping')).json(), null, 2); }
+  catch (e) { out.textContent = 'error: ' + e.message; }
+};
+
+document.getElementById('mic').onclick = () => {
+  const out = document.getElementById('micOut');
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { out.textContent = 'No speech recognition in this browser.'; return; }
+  const sr = new SR();
+  sr.lang = 'en-US';
+  sr.onresult = (e) => { out.textContent = 'Heard: ' + e.results[0][0].transcript; };
+  sr.onerror = (e) => { out.textContent = 'Mic error: ' + e.error; };
+  out.textContent = 'listening...';
+  sr.start();
+};
+
+document.getElementById('box').onclick = () => {
+  const scene = new THREE.Scene();
+  const box = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshStandardMaterial({ color: 0x33aaff }));
+  box.position.y = 0.5;
+  scene.add(box);
+  new GLTFExporter().parse(scene, (glb) => {
+    const url = URL.createObjectURL(new Blob([glb], { type: 'model/gltf-binary' }));
+    document.getElementById('mv').src = url;
+    document.getElementById('arOut').textContent = 'Box ready. Tap the AR icon at the bottom right of the viewer. It should be 1 m tall on your floor.';
+  }, (err) => { document.getElementById('arOut').textContent = 'export error: ' + err; }, { binary: true });
+};
+</script>
+</body>
+</html>
