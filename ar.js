@@ -53,25 +53,132 @@ function truss(it) {
   return g;
 }
 
+
+// Detailed procedural models at true size. Each returns a Group centered on the item's footprint, base at its z.
+const M = (o) => new THREE.MeshStandardMaterial(o);
+function part(geo, mat, x, y, z) { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); return m; }
+function place(g, it) { g.position.set(it.x, it.z, -it.y); g.name = it.label; return g; }
+
+function deckModel(it) {
+  const g = new THREE.Group();
+  const top = M(MATS.deck), leg = M({ color: 0x777777, roughness: 0.4, metalness: 0.8 });
+  g.add(part(new THREE.BoxGeometry(it.w, 0.05, it.d), top, 0, it.h - 0.025, 0));
+  const legGeo = new THREE.CylinderGeometry(0.025, 0.025, it.h - 0.05, 8);
+  for (const a of [-1, 1]) for (const b of [-1, 1]) g.add(part(legGeo, leg, a * (it.w / 2 - 0.1), (it.h - 0.05) / 2, b * (it.d / 2 - 0.1)));
+  // Black skirt on the audience side.
+  g.add(part(new THREE.BoxGeometry(it.w, it.h - 0.05, 0.01), M({ color: 0x080808, roughness: 1 }), 0, (it.h - 0.05) / 2, it.d / 2));
+  return place(g, it);
+}
+
+function speakerModel(it) {
+  const g = new THREE.Group();
+  const body = M(MATS.speaker);
+  g.add(part(new THREE.BoxGeometry(it.w, it.h, it.d), body, 0, it.h / 2, 0));
+  g.add(part(new THREE.PlaneGeometry(it.w * 0.86, it.h * 0.86), M({ color: 0x3a3a3a, roughness: 0.9, metalness: 0.3 }), 0, it.h / 2, it.d / 2 + 0.002));
+  const woofer = part(new THREE.CircleGeometry(0.13, 32), M({ color: 0x0a0a0a, roughness: 0.6 }), 0, it.h * 0.38, it.d / 2 + 0.004);
+  const horn = part(new THREE.PlaneGeometry(0.16, 0.08), M({ color: 0x0a0a0a, roughness: 0.6 }), 0, it.h * 0.78, it.d / 2 + 0.004);
+  g.add(woofer, horn);
+  g.add(part(new THREE.BoxGeometry(0.12, 0.03, 0.04), M({ color: 0x111111 }), 0, it.h + 0.015, 0));
+  return place(g, it);
+}
+
+function standModel(it) {
+  const g = new THREE.Group();
+  const metal = M(MATS.stand);
+  if (it.label === 'Projector table') {
+    g.add(part(new THREE.BoxGeometry(it.w, 0.04, it.d), M({ color: 0x1a1a1a, roughness: 0.7 }), 0, it.h - 0.02, 0));
+    const legGeo = new THREE.CylinderGeometry(0.02, 0.02, it.h - 0.04, 8);
+    for (const a of [-1, 1]) for (const b of [-1, 1]) g.add(part(legGeo, metal, a * (it.w / 2 - 0.05), (it.h - 0.04) / 2, b * (it.d / 2 - 0.05)));
+    return place(g, it);
+  }
+  // Tripod speaker stand: pole plus three splayed legs.
+  g.add(part(new THREE.CylinderGeometry(0.018, 0.018, it.h, 10), metal, 0, it.h / 2, 0));
+  const legLen = 0.75, legGeo = new THREE.CylinderGeometry(0.012, 0.012, legLen, 8);
+  for (let k = 0; k < 3; k++) {
+    const a = (k / 3) * Math.PI * 2;
+    const l = new THREE.Mesh(legGeo, metal);
+    l.position.set(Math.cos(a) * 0.25, 0.3, Math.sin(a) * 0.25);
+    l.lookAt(Math.cos(a) * 0.5, 0, Math.sin(a) * 0.5);
+    l.rotateX(Math.PI / 2);
+    g.add(l);
+  }
+  return place(g, it);
+}
+
+function washModel(it) {
+  const g = new THREE.Group();
+  const black = M(MATS.wash);
+  g.add(part(new THREE.BoxGeometry(it.w, 0.06, it.d), black, 0, 0.03, 0));
+  for (const a of [-1, 1]) g.add(part(new THREE.BoxGeometry(0.015, 0.2, 0.06), black, a * 0.11, 0.15, 0));
+  const head = part(new THREE.CylinderGeometry(0.09, 0.09, 0.14, 20), black, 0, 0.2, 0);
+  head.rotation.x = Math.PI / 2.5;
+  head.rotation.z = it.x > 0 ? 0.6 : -0.6;
+  const lens = part(new THREE.CircleGeometry(0.075, 24), M({ color: 0xff9a3c, emissive: 0xff7a00, emissiveIntensity: 0.8 }), 0, -0.071, 0);
+  lens.rotation.x = Math.PI / 2;
+  head.add(lens);
+  g.add(head);
+  return place(g, it);
+}
+
+function projectorModel(it) {
+  const g = new THREE.Group();
+  g.add(part(new THREE.BoxGeometry(it.w, it.h, it.d), M(MATS.projector), 0, it.h / 2, 0));
+  const lens = part(new THREE.CylinderGeometry(0.06, 0.07, 0.08, 24), M({ color: 0x111111, roughness: 0.2, metalness: 0.8 }), 0, it.h / 2, -it.d / 2 - 0.04);
+  lens.rotation.x = Math.PI / 2;
+  g.add(lens);
+  for (let k = -2; k <= 2; k++) g.add(part(new THREE.BoxGeometry(0.01, it.h * 0.6, 0.12), M({ color: 0x555555 }), it.w / 2 + 0.003, it.h / 2, k * 0.1));
+  return place(g, it);
+}
+
+function drapeModel(it) {
+  const g = new THREE.Group();
+  const velour = M(MATS.backdrop), pipe = M(MATS.truss);
+  const folds = Math.max(6, Math.round(it.w / 0.3));
+  const fw = it.w / folds;
+  for (let k = 0; k < folds; k++) g.add(part(new THREE.BoxGeometry(fw, it.h, 0.02), velour, -it.w / 2 + fw * (k + 0.5), it.h / 2, k % 2 ? 0.04 : -0.04));
+  const top = part(new THREE.CylinderGeometry(0.02, 0.02, it.w, 10), pipe, 0, it.h, 0);
+  top.rotation.z = Math.PI / 2;
+  g.add(top);
+  for (const a of [-1, 1]) {
+    g.add(part(new THREE.CylinderGeometry(0.025, 0.025, it.h, 10), pipe, a * it.w / 2, it.h / 2, 0));
+    g.add(part(new THREE.BoxGeometry(0.45, 0.02, 0.45), pipe, a * it.w / 2, 0.01, 0));
+  }
+  return place(g, it);
+}
+
+function scrimModel(it) {
+  const g = new THREE.Group();
+  g.add(part(new THREE.BoxGeometry(it.w, it.h, 0.005), M(MATS.scrim), 0, it.h / 2, 0));
+  const pipe = M(MATS.truss);
+  for (const y of [0, it.h]) {
+    const p = part(new THREE.CylinderGeometry(0.02, 0.02, it.w, 10), pipe, 0, y, 0);
+    p.rotation.z = Math.PI / 2;
+    g.add(p);
+  }
+  return place(g, it);
+}
+
+function fohModel(it) {
+  const g = new THREE.Group();
+  const dark = M(MATS.foh);
+  g.add(part(new THREE.BoxGeometry(it.w, 0.04, it.d), dark, 0, it.h - 0.02, 0));
+  const legGeo = new THREE.CylinderGeometry(0.02, 0.02, it.h - 0.04, 8);
+  for (const a of [-1, 1]) for (const b of [-1, 1]) g.add(part(legGeo, M(MATS.stand), a * (it.w / 2 - 0.05), (it.h - 0.04) / 2, b * (it.d / 2 - 0.05)));
+  g.add(part(new THREE.BoxGeometry(0.34, 0.02, 0.24), M({ color: 0x9a9a9a, metalness: 0.7, roughness: 0.3 }), -0.4, it.h + 0.01, 0));
+  const screen = part(new THREE.BoxGeometry(0.34, 0.22, 0.01), M({ color: 0x00e5ff, emissive: 0x0a3a40 }), -0.4, it.h + 0.12, -0.12);
+  g.add(screen);
+  g.add(part(new THREE.BoxGeometry(0.5, 0.08, 0.4), M({ color: 0x222222, roughness: 0.6 }), 0.35, it.h + 0.04, 0));
+  return place(g, it);
+}
+
+const MODELS = { deck: deckModel, speaker: speakerModel, stand: standModel, wash: washModel, projector: projectorModel, backdrop: drapeModel, scrim: scrimModel, foh: fohModel };
+
 export function buildScene(show) {
   const scene = new THREE.Scene();
   for (const it of show.items) {
     if (it.id === 'truss') scene.add(truss(it));
+    else if (MODELS[it.id]) scene.add(MODELS[it.id](it));
     else scene.add(box(it, MATS[it.id] ?? { color: 0x888888 }));
-    if (it.id === 'speaker') {
-      // Grille face toward the audience.
-      const g = new THREE.Mesh(new THREE.PlaneGeometry(it.w * 0.85, it.h * 0.85),
-        new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.9, metalness: 0.2 }));
-      g.position.set(it.x, it.z + it.h / 2, -it.y + it.d / 2 + 0.002);
-      scene.add(g);
-    }
-    if (it.id === 'projector') {
-      const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.05, 20),
-        new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2, metalness: 0.8 }));
-      lens.rotation.x = Math.PI / 2;
-      lens.position.set(it.x, it.z + it.h / 2, -it.y - it.d / 2 - 0.02);
-      scene.add(lens);
-    }
   }
   // The hologram: a glowing figure just upstage of the scrim.
   const scrim = show.items.find((i) => i.id === 'scrim');
