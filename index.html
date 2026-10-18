@@ -37,6 +37,7 @@
   #film[hidden] { display:none; }
   .film-head { display:flex; gap:8px; align-items:center; justify-content:space-between; margin-bottom:6px; }
   #filmSay { margin-bottom:8px; }
+  #plan2d svg { touch-action: none; } #plan2d rect.movable { cursor: grab; stroke: #00e5ff; }
   .hotspot { background:rgba(14,15,18,0.85); color:#eceef2; border:1px solid #00e5ff; border-radius:6px; padding:4px 6px; font-size:11px; line-height:1.3; text-align:left; font-weight:400; max-width:180px; }
 </style>
 <script type="importmap">
@@ -88,6 +89,7 @@
 
   <section>
     <h2>2.5D plan view</h2>
+    <div class="sub">Drag a speaker, wash, projector or FOH table with your finger. Checks, cables, budget and 3D update.</div>
     <div id="plan2d" class="scroll"></div>
   </section>
 

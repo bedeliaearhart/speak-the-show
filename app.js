@@ -1,4 +1,4 @@
-import { buildShow } from './checks.js';
+import { buildShow, runChecks, cables, budget } from './checks.js';
 import { CATALOG, SOFTWARE } from './catalog.js';
 import { SITE } from './site.js';
 import { toGlbUrl } from './ar.js';
@@ -62,7 +62,8 @@ function renderPlan2d(show) {
   const W = (maxX - minX) * s, H = (maxY - minY) * s;
   const px = (x) => (x - minX) * s, py = (y) => (maxY - y) * s;
   const col = { deck: '#444', truss: '#bbb', scrim: '#fff', backdrop: '#111', projector: '#2266ff', foh: '#664422', speaker: '#222', wash: '#ff8800' };
-  const rects = show.items.map((i) => `<rect x="${px(i.x - i.w / 2)}" y="${py(i.y + i.d / 2)}" width="${Math.max(2, i.w * s)}" height="${Math.max(2, i.d * s)}" fill="${col[i.id] || '#888'}" stroke="#555"><title>${esc(i.label)} · z ${i.z} m · top ${Math.round((i.z + i.h) * 100) / 100} m</title></rect>`).join('');
+  planGeom = { s, minX, maxY };
+  const rects = show.items.map((i, n) => `<rect data-i="${n}" class="${MOVABLE.has(i.id) ? 'movable' : ''}" x="${px(i.x - i.w / 2)}" y="${py(i.y + i.d / 2)}" width="${Math.max(2, i.w * s)}" height="${Math.max(2, i.d * s)}" fill="${col[i.id] || '#888'}" stroke="#555"><title>${esc(i.label)} · z ${i.z} m · top ${Math.round((i.z + i.h) * 100) / 100} m</title></rect>`).join('');
   const proj = show.items.find((i) => i.id === 'projector');
   const beam = proj ? `<polygon points="${px(proj.x)},${py(proj.y)} ${px(-show.imageW / 2)},${py(0.3)} ${px(show.imageW / 2)},${py(0.3)}" fill="#88ccff" opacity="0.15"/>` : '';
   $('plan2d').innerHTML = `<svg viewBox="0 0 ${W} ${H + 20}" width="100%" style="min-width:300px;max-height:420px">
@@ -70,6 +71,43 @@ function renderPlan2d(show) {
     <text x="${px(0) + 8}" y="${py(0) + 4}">spike</text>
     <text x="4" y="${H + 14}">Stage ${show.W.toFixed(2)} m x ${show.D.toFixed(2)} m · image ${show.imageW} x ${show.imageH} m · projector ${show.throwLo} m from spike · audience is down</text></svg>`;
 }
+
+// Touch gesture: drag speakers, washes, the projector or FOH on the plan; everything recomputes live.
+const MOVABLE = new Set(['speaker', 'wash', 'projector', 'foh']);
+let planGeom = null;
+let current = null;
+function refresh(show) {
+  show.checks = runChecks(show); show.cables = cables(show); show.budget = budget(show);
+  renderChecks(show); renderBudget(show); renderCables(show); renderPlan2d(show);
+}
+let drag = null;
+$('plan2d').addEventListener('pointerdown', (e) => {
+  const r = e.target.closest('rect.movable');
+  if (!r || !current) return;
+  const it = current.items[+r.dataset.i];
+  // Move the item's stand with it.
+  const twins = current.items.filter((o) => o !== it && o.id === 'stand' && o.x === it.x && o.y === it.y);
+  const svg = $('plan2d').querySelector('svg');
+  drag = { it, twins, k: svg.viewBox.baseVal.width / svg.getBoundingClientRect().width, box: svg.getBoundingClientRect(), g: { ...planGeom } };
+  e.preventDefault();
+});
+window.addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  const x = (e.clientX - drag.box.left) * drag.k / drag.g.s + drag.g.minX;
+  const y = drag.g.maxY - (e.clientY - drag.box.top) * drag.k / drag.g.s;
+  for (const o of [drag.it, ...drag.twins]) { o.x = Math.round(x * 100) / 100; o.y = Math.round(y * 100) / 100; }
+  refresh(current);
+});
+window.addEventListener('pointerup', async () => {
+  if (!drag) return;
+  drag = null;
+  const oldSrc = $('mv').src;
+  $('mv').src = await toGlbUrl(current);
+  if (oldSrc.startsWith('blob:')) URL.revokeObjectURL(oldSrc);
+  renderHotspots(current);
+  mapReady.then((ok) => ok && drawShow(current));
+  $('status').textContent = 'Moved. Checks, cables, budget and the 3D model updated.';
+});
 
 function renderSoftware(pick) {
   $('software').innerHTML = '<table>' + SOFTWARE.map((s) =>
@@ -118,6 +156,7 @@ export async function planShow(text) {
   } catch (e) { plan = { fallback: true, reason: e.message }; }
   const lux = parseFloat($('ambientLux').value);
   const show = buildShow({ ...plan.params, ...(Number.isFinite(lux) ? { ambientLux: lux } : {}) }, room());
+  current = show;
   renderChecks(show); renderBudget(show); renderCables(show); renderFlow(show); renderPlan2d(show); renderSoftware(plan.software);
   $('summary').textContent = plan.summary || (plan.fallback ? `Default stage shown (${plan.reason}).` : '');
   $('steps').innerHTML = (plan.steps || []).map((s) => `<li><b>${esc(s.title)}:</b> ${esc(s.text)}</li>`).join('');
