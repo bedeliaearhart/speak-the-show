@@ -80,6 +80,34 @@ function refresh(show) {
   show.checks = runChecks(show); show.cables = cables(show); show.budget = budget(show);
   renderChecks(show); renderBudget(show); renderCables(show); renderPlan2d(show);
 }
+
+// Undo, redo and reset for layout edits: snapshots of every item's position.
+let past = [], future = [], original = null;
+const snap = () => current.items.map((o) => [o.x, o.y]);
+function restore(state) {
+  current.items.forEach((o, n) => { [o.x, o.y] = state[n]; });
+  refresh(current);
+  rebuild3d('Restored.');
+}
+async function rebuild3d(msg) {
+  const oldSrc = $('mv').src;
+  $('mv').src = await toGlbUrl(current);
+  if (oldSrc.startsWith('blob:')) URL.revokeObjectURL(oldSrc);
+  renderHotspots(current);
+  mapReady.then((ok) => ok && drawShow(current));
+  $('status').textContent = msg;
+  $('undo').disabled = !past.length; $('redo').disabled = !future.length;
+}
+function undo() { if (!past.length) return; future.push(snap()); restore(past.pop()); }
+function redo() { if (!future.length) return; past.push(snap()); restore(future.pop()); }
+function resetLayout() { if (!original) return; past.push(snap()); future = []; restore(original); }
+$('undo').onclick = undo; $('redo').onclick = redo; $('reset').onclick = resetLayout;
+window.addEventListener('keydown', (e) => {
+  if (!(e.metaKey || e.ctrlKey) || e.target.closest('textarea, input')) return;
+  const k = e.key.toLowerCase();
+  if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+  else if ((k === 'z' && e.shiftKey) || k === 'y') { e.preventDefault(); redo(); }
+});
 let drag = null;
 $('plan2d').addEventListener('pointerdown', (e) => {
   const r = e.target.closest('rect.movable');
@@ -88,6 +116,7 @@ $('plan2d').addEventListener('pointerdown', (e) => {
   // Move the item's stand with it.
   const twins = current.items.filter((o) => o !== it && o.id === 'stand' && o.x === it.x && o.y === it.y);
   const svg = $('plan2d').querySelector('svg');
+  past.push(snap()); future = [];
   drag = { it, twins, k: svg.viewBox.baseVal.width / svg.getBoundingClientRect().width, box: svg.getBoundingClientRect(), g: { ...planGeom } };
   e.preventDefault();
 });
@@ -98,15 +127,10 @@ window.addEventListener('pointermove', (e) => {
   for (const o of [drag.it, ...drag.twins]) { o.x = Math.round(x * 100) / 100; o.y = Math.round(y * 100) / 100; }
   refresh(current);
 });
-window.addEventListener('pointerup', async () => {
+window.addEventListener('pointerup', () => {
   if (!drag) return;
   drag = null;
-  const oldSrc = $('mv').src;
-  $('mv').src = await toGlbUrl(current);
-  if (oldSrc.startsWith('blob:')) URL.revokeObjectURL(oldSrc);
-  renderHotspots(current);
-  mapReady.then((ok) => ok && drawShow(current));
-  $('status').textContent = 'Moved. Checks, cables, budget and the 3D model updated.';
+  rebuild3d('Moved. Checks, cables, budget and the 3D model updated.');
 });
 
 function renderSoftware(pick) {
@@ -157,6 +181,8 @@ export async function planShow(text) {
   const lux = parseFloat($('ambientLux').value);
   const show = buildShow({ ...plan.params, ...(Number.isFinite(lux) ? { ambientLux: lux } : {}) }, room());
   current = show;
+  original = show.items.map((o) => [o.x, o.y]); past = []; future = [];
+  $('undo').disabled = true; $('redo').disabled = true;
   renderChecks(show); renderBudget(show); renderCables(show); renderFlow(show); renderPlan2d(show); renderSoftware(plan.software);
   $('summary').textContent = plan.summary || (plan.fallback ? `Default stage shown (${plan.reason}).` : '');
   $('steps').innerHTML = (plan.steps || []).map((s) => `<li><b>${esc(s.title)}:</b> ${esc(s.text)}</li>`).join('');
