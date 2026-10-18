@@ -1,0 +1,23 @@
+{
+  "imagePath": "image-targets/spike_luminance.jpg",
+  "metadata": null,
+  "name": "spike",
+  "type": "PLANAR",
+  "properties": {
+    "top": 0,
+    "left": 0,
+    "width": 1500,
+    "height": 2000,
+    "isRotated": false,
+    "originalWidth": 1500,
+    "originalHeight": 2000
+  },
+  "resources": {
+    "originalImage": "spike_original.jpg",
+    "croppedImage": "spike_cropped.jpg",
+    "thumbnailImage": "spike_thumbnail.jpg",
+    "luminanceImage": "spike_luminance.jpg"
+  },
+  "created": 1792294465878,
+  "updated": 1792294465878
+}

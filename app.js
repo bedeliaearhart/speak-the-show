@@ -2,6 +2,7 @@ import { buildShow, runChecks, cables, budget } from './checks.js';
 import { CATALOG, SOFTWARE } from './catalog.js';
 import { SITE } from './site.js';
 import { KNOWLEDGE } from './knowledge.js';
+import { lockLayout } from './shared.js';
 import { toGlbUrl } from './ar.js';
 import { initMap, drawShow } from './map.js';
 
@@ -233,3 +234,15 @@ $('talk').onclick = () => {
 };
 
 planShow($('concept').value);
+
+// Admin lock: pins this exact layout as the shared design for the space. The first lock sets the PIN.
+$('lockBtn').onclick = async () => {
+  if (!current) return;
+  const by = prompt('Your name for the lock badge', 'Amelia');
+  if (by === null) return;
+  const pin = prompt('Admin PIN (the first lock sets it, at least 4 characters)');
+  if (!pin) return;
+  const layout = { items: current.items, params: current.params, room: current.room };
+  const res = await lockLayout({ pin, by, layout }).catch((e) => e.message);
+  $('status').textContent = res === 'locked' ? 'Locked. Everyone on /anchor.html now sees this placement.' : 'Lock failed: ' + res;
+};
