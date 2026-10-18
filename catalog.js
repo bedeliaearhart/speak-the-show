@@ -35,6 +35,12 @@ export const CATALOG = {
     price: null, compare: 'Panasonic PT-RZ12KU listed at $2,197, period not stated',
     source: 'projectorcentral.com, rentforevent.com/la',
   },
+  lensUST: {
+    name: 'Epson ELPLX02S ultra short-throw lens', category: 'Video',
+    throwRatio: 0.35, watts: 0,
+    spec: '0.35:1 throw ratio, 8 mm, f/1.9, lists the Pro L1505U as compatible',
+    price: null, source: 'shop.avispl.com; alloys.com.au',
+  },
   speaker: {
     name: 'QSC K12.2 powered speaker', category: 'Audio',
     w: 0.36, d: 0.35, h: 0.6, kg: 17.7, watts: 228, amps: 1.9, coverage: 75,

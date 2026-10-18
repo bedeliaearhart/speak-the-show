@@ -123,7 +123,8 @@ function washModel(it) {
 function projectorModel(it) {
   const g = new THREE.Group();
   g.add(part(new THREE.BoxGeometry(it.w, it.h, it.d), M(MATS.projector), 0, it.h / 2, 0));
-  const lens = part(new THREE.CylinderGeometry(0.06, 0.07, 0.08, 24), M({ color: 0x111111, roughness: 0.2, metalness: 0.8 }), 0, it.h / 2, -it.d / 2 - 0.04);
+  const dir = it.facing === 'audience' ? 1 : -1;
+  const lens = part(new THREE.CylinderGeometry(0.06, 0.07, 0.08, 24), M({ color: 0x111111, roughness: 0.2, metalness: 0.8 }), 0, it.h / 2, dir * (it.d / 2 + 0.04));
   lens.rotation.x = Math.PI / 2;
   g.add(lens);
   for (let k = -2; k <= 2; k++) g.add(part(new THREE.BoxGeometry(0.01, it.h * 0.6, 0.12), M({ color: 0x555555 }), it.w / 2 + 0.003, it.h / 2, k * 0.1));

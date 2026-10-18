@@ -38,6 +38,17 @@ test('default scrim stage builds with a budget and checks', () => {
   assert.ok(show.budget.quoteOnly > 0);
   assert.ok(show.cables.length > 4);
   assert.equal(show.checks.find((c) => c.name === 'Projector throw').status, 'green');
-  const tight = buildShow({}, { widthM: 8, frontDepthM: 5, ceilingM: 3, floorElevationM: 4.5 });
+  const tight = buildShow({}, { widthM: 8, frontDepthM: 5, ceilingM: 3, floorElevationM: 4.5, crowd: 'seated' });
   assert.equal(tight.checks.find((c) => c.name === 'Projector throw').status, 'red');
+});
+
+test('space picks the projection strategy', () => {
+  const standing = buildShow({}, { crowd: 'standing', backDepthM: 4 });
+  assert.equal(standing.strategy.mode, 'rear');
+  assert.ok(standing.items.find((i) => i.id === 'projector').y > 0);
+  const seated = buildShow({}, { crowd: 'seated', backDepthM: 4 });
+  assert.equal(seated.strategy.mode, 'front');
+  assert.ok(seated.items.find((i) => i.id === 'projector').y < 0);
+  const shallow = buildShow({}, { crowd: 'standing', backDepthM: 1 });
+  assert.equal(shallow.strategy.mode, 'front-flown');
 });

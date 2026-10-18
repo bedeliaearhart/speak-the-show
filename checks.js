@@ -14,11 +14,11 @@ export const M_PER_FT = 0.3048;
 export const DEFAULT_PARAMS = {
   decksWide: 2, decksDeep: 2, deckHeightM: 0.61,
   speakers: 2, washes: 4, scrim: true, projector: true,
-  days: 2, operatorHours: 8, ambientLux: 50,
+  days: 2, operatorHours: 8, ambientLux: 50, projection: 'auto',
 };
 
 export const DEFAULT_ROOM = {
-  widthM: 12, frontDepthM: 12, ceilingM: 4.5, floorElevationM: 4.5,
+  widthM: 12, frontDepthM: 12, ceilingM: 4.5, floorElevationM: 4.5, crowd: 'standing', backDepthM: 4,
 };
 
 const status = (s, value, reason) => ({ status: s, value, reason });
@@ -94,6 +94,23 @@ export function cableLengthFt(meters) {
   return CABLE_FT.find((c) => c >= ft) ?? Math.ceil(ft / 25) * 25;
 }
 
+
+// Design strategy from the space: a standing crowd between FOH and the stage blocks a front beam,
+// so the planner rear-projects with the ultra short-throw lens when there is depth behind the scrim.
+export function chooseProjection(p, room, imageW) {
+  const ust = imageW * CATALOG.lensUST.throwRatio;
+  const rearNeeds = Math.round((ust + CATALOG.projector.d + 0.3) * 100) / 100;
+  if (p.projection === 'front') return { mode: 'front', reason: 'front projection chosen by hand', rearNeeds };
+  if (p.projection === 'rear') return { mode: 'rear', reason: 'rear short-throw chosen by hand', rearNeeds };
+  if (room.crowd === 'standing' && room.backDepthM >= rearNeeds) {
+    return { mode: 'rear', reason: `standing crowd would cut a front beam, and ${room.backDepthM} m behind the scrim fits the ${rearNeeds} m a rear short-throw needs`, rearNeeds };
+  }
+  if (room.crowd === 'standing') {
+    return { mode: 'front-flown', reason: `standing crowd, but only ${room.backDepthM} m behind the scrim (rear short-throw needs ${rearNeeds} m), so fly the projector above head height`, rearNeeds };
+  }
+  return { mode: 'front', reason: 'seated crowd leaves the front beam clear', rearNeeds };
+}
+
 // Place every item. Returns items with x, y, z (base), w, d, h and catalog id.
 export function layout(params = DEFAULT_PARAMS, room = DEFAULT_ROOM) {
   const p = { ...DEFAULT_PARAMS, ...params };
@@ -121,11 +138,25 @@ export function layout(params = DEFAULT_PARAMS, room = DEFAULT_ROOM) {
     items.push({ id: 'backdrop', label: 'Black backdrop', x: 0, y: D - 0.05, z: 0, w: W, d: 0.02, h: top });
   }
   const proj = CATALOG.projector;
-  const [throwLo] = throwRange(imageW, proj.throwMin, proj.throwMax);
+  const strategy = chooseProjection(p, room, imageW);
+  let [throwLo] = throwRange(imageW, proj.throwMin, proj.throwMax);
+  const fohY = -Math.max(4, Math.min(throwLo, room.frontDepthM - 1.5));
   if (p.projector) {
-    items.push({ id: 'stand', label: 'Projector table', x: 0, y: -throwLo, z: 0, w: 0.9, d: 0.75, h: 1.0 });
-    items.push({ id: 'projector', label: 'Projector', x: 0, y: -throwLo, z: 1.0, w: proj.w, d: proj.d, h: proj.h });
-    items.push({ id: 'foh', label: 'FOH table (media server, mixer)', x: 1.2, y: -throwLo, z: 0, w: 1.8, d: 0.75, h: 0.75 });
+    if (strategy.mode === 'rear') {
+      // Rear: UST lens behind the scrim, low on a stand, aimed back through the gauze.
+      throwLo = Math.round(imageW * CATALOG.lensUST.throwRatio * 100) / 100;
+      const py = scrimY + throwLo + proj.d / 2;
+      items.push({ id: 'stand', label: 'Projector table', x: 0, y: py, z: H0, w: 0.9, d: 0.75, h: 0.4 });
+      items.push({ id: 'projector', label: 'Projector (rear, UST lens)', x: 0, y: py, z: H0 + 0.4, w: proj.w, d: proj.d, h: proj.h, facing: 'audience' });
+      const drape = items.find((i) => i.id === 'backdrop');
+      if (drape) drape.y = Math.max(drape.y, py + proj.d / 2 + 0.3);
+    } else {
+      const flown = strategy.mode === 'front-flown';
+      const z = flown ? Math.min(3.0, room.ceilingM - 0.6) : 1.0;
+      items.push({ id: 'stand', label: flown ? 'Projector hang (truss tower)' : 'Projector table', x: 0, y: -throwLo, z: 0, w: flown ? 0.3 : 0.9, d: flown ? 0.3 : 0.75, h: z });
+      items.push({ id: 'projector', label: flown ? 'Projector (front, flown)' : 'Projector', x: 0, y: -throwLo, z, w: proj.w, d: proj.d, h: proj.h });
+    }
+    items.push({ id: 'foh', label: 'FOH table (media server, mixer)', x: 1.2, y: fohY, z: 0, w: 1.8, d: 0.75, h: 0.75 });
   }
   // Speakers on tripod stands (pole from the floor to the cabinet), pairs stepped back 1.2 m.
   for (let i = 0; i < p.speakers; i++) {
@@ -141,7 +172,7 @@ export function layout(params = DEFAULT_PARAMS, room = DEFAULT_ROOM) {
     const yy = 0.6 + (D - 0.9) * (Math.floor(i / 2) + 0.5) / rows;
     items.push({ id: 'wash', label: 'LED wash', x: sx * (W / 2 - 0.2), y: yy, z: H0, w: 0.25, d: 0.2, h: 0.3 });
   }
-  return { items, W, D, H0, imageW, imageH, top, throwLo, params: p, room };
+  return { items, W, D, H0, imageW, imageH, top, throwLo, strategy, params: p, room };
 }
 
 export function cables(show) {
@@ -188,6 +219,7 @@ export function budget(show) {
   if (counts.projector) {
     lines.push({ item: CATALOG.projector.name, qty: 1, low: 160.5 * p.days, high: 160.5 * p.days, note: `estimate from campus projection rate $160.50 per screen per day, x ${p.days} days. Show-grade unit is quote only`, source: 'hub.washington.edu (FY20)' });
   }
+  if (show.strategy && show.strategy.mode === 'rear') add('lensUST', 1, 1, '');
   add('speaker', counts.speaker, weeks, `${weeks} week(s)`);
   add('wash', counts.wash, 1, '');
   add('operator', 1, p.operatorHours, `${p.operatorHours} h`);
@@ -200,7 +232,15 @@ export function runChecks(show) {
   const { room, params: p } = show;
   const out = [];
   if (p.projector) {
-    out.push({ name: 'Projector throw', ...throwCheck(show.imageW, room.frontDepthM) });
+    const st = show.strategy;
+    out.push({ name: 'Projection strategy', status: st.mode === 'front-flown' ? 'amber' : 'green', value: st.mode, reason: st.reason });
+    if (st.mode === 'rear') {
+      const ok = room.backDepthM >= st.rearNeeds;
+      out.push({ name: 'Projector throw', status: ok ? 'green' : 'red', value: show.throwLo, reason: `UST lens 0.35:1 puts the lens ${show.throwLo} m behind the scrim, needs ${st.rearNeeds} m, room gives ${room.backDepthM} m` });
+      out.push({ name: 'Rear beam zone', status: 'amber', value: show.throwLo, reason: `keep performers out of the ${show.throwLo} m beam behind the scrim, and aim the lens hotspot above audience eye line` });
+    } else {
+      out.push({ name: 'Projector throw', ...throwCheck(show.imageW, room.frontDepthM) });
+    }
     out.push({ name: 'Image brightness', ...washoutCheck(CATALOG.projector.lumens, show.imageW, show.imageH, p.ambientLux) });
   }
   const tallest = Math.max(...show.items.map((i) => i.z + i.h));

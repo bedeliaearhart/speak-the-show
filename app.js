@@ -14,7 +14,8 @@ let mapReady = initMap($('map'), $('mapStatus')).then(() => true).catch((e) => {
 
 function room() {
   const out = {};
-  for (const id of ['widthM', 'frontDepthM', 'ceilingM', 'floorElevationM']) {
+  out.crowd = $('crowd').value;
+  for (const id of ['widthM', 'frontDepthM', 'ceilingM', 'floorElevationM', 'backDepthM']) {
     const v = parseFloat($(id).value);
     if (Number.isFinite(v) && v > 0) out[id] = v;
   }
@@ -74,6 +75,7 @@ function renderPlan2d(show) {
 
 // Touch gesture: drag speakers, washes, the projector or FOH on the plan; everything recomputes live.
 const MOVABLE = new Set(['speaker', 'wash', 'projector', 'foh']);
+for (const id of ['crowd', 'projection']) document.getElementById(id).addEventListener('change', () => planShow($('concept').value));
 let planGeom = null;
 let current = null;
 function refresh(show) {
@@ -179,7 +181,7 @@ export async function planShow(text) {
     plan = await (await fetch('/api/plan', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) })).json();
   } catch (e) { plan = { fallback: true, reason: e.message }; }
   const lux = parseFloat($('ambientLux').value);
-  const show = buildShow({ ...plan.params, ...(Number.isFinite(lux) ? { ambientLux: lux } : {}) }, room());
+  const show = buildShow({ ...plan.params, projection: $('projection').value, ...(Number.isFinite(lux) ? { ambientLux: lux } : {}) }, room());
   current = show;
   original = show.items.map((o) => [o.x, o.y]); past = []; future = [];
   $('undo').disabled = true; $('redo').disabled = true;
