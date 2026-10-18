@@ -1,6 +1,7 @@
 import { buildShow, runChecks, cables, budget } from './checks.js';
 import { CATALOG, SOFTWARE } from './catalog.js';
 import { SITE } from './site.js';
+import { KNOWLEDGE } from './knowledge.js';
 import { toGlbUrl } from './ar.js';
 import { initMap, drawShow } from './map.js';
 
@@ -135,6 +136,12 @@ window.addEventListener('pointerup', () => {
   rebuild3d('Moved. Checks, cables, budget and the 3D model updated.');
 });
 
+function renderKnowledge() {
+  $('knowledge').innerHTML = Object.entries(KNOWLEDGE).map(([k, v]) =>
+    `<details><summary><b>${esc(k)}</b></summary><ul class="sub">${v.map((r) => `<li>${esc(r)}</li>`).join('')}</ul></details>`).join('');
+}
+renderKnowledge();
+
 function renderSoftware(pick) {
   $('software').innerHTML = '<table>' + SOFTWARE.map((s) =>
     `<tr><td>${pick && pick.pick === s.name ? '<b>' + esc(s.name) + ' (suggested)</b>' : esc(s.name)}</td><td class="sub">${esc(s.use)}</td></tr>`).join('') +
@@ -178,7 +185,7 @@ export async function planShow(text) {
   $('status').textContent = 'Planning...';
   let plan = {};
   try {
-    plan = await (await fetch('/api/plan', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) })).json();
+    plan = await (await fetch('/api/plan', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, room: { ...room(), projection: $('projection').value } }) })).json();
   } catch (e) { plan = { fallback: true, reason: e.message }; }
   const lux = parseFloat($('ambientLux').value);
   const show = buildShow({ ...plan.params, projection: $('projection').value, ...(Number.isFinite(lux) ? { ambientLux: lux } : {}) }, room());

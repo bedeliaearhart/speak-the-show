@@ -1,4 +1,5 @@
 // Turns a spoken show concept into stage parameters plus a short walkthrough.
+import { knowledgeText } from '../knowledge.js';
 const CLAUDE_KEY = process.env.ANTHROPIC_API_KEY || process.env.Molton_Hackathon_Claude_Key;
 // User-scoped keys must name a workspace. The workspace ID is not a secret.
 const WORKSPACE = process.env.ANTHROPIC_WORKSPACE_ID || 'wrkspc_016hBkfHDyJoWCTFBYPhAfup';
@@ -9,11 +10,13 @@ with a scrim hologram effect (front projection onto a gauze, performers behind i
 Return ONLY JSON, no prose, in this shape:
 {"params":{"decksWide":2,"decksDeep":2,"deckHeightM":0.61,"speakers":2,"washes":4,"scrim":true,"projector":true,"days":2,"operatorHours":8},
  "summary":"one sentence",
- "steps":[{"title":"Concept","text":"..."},{"title":"What you need","text":"..."},{"title":"Size and time","text":"..."},{"title":"Cables","text":"..."},{"title":"How it connects","text":"..."},{"title":"Software","text":"..."}],
+ "steps":[{"title":"Concept","text":"..."},{"title":"What you need","text":"..."},{"title":"Size and time","text":"..."},{"title":"Cables","text":"..."},{"title":"How it connects","text":"..."},{"title":"Cable paths","text":"..."},{"title":"Ingress and egress","text":"..."},{"title":"Queues","text":"..."},{"title":"Tech booth","text":"..."},{"title":"Software","text":"..."}],
  "software":{"pick":"one of: Resolume Arena, QLab, TouchDesigner, MadMapper, disguise Designer","why":"one sentence"}}
 Rules: decksWide 1-4 (each deck 8 ft wide), decksDeep 1-3 (each 4 ft deep), deckHeightM 0.3-1.07,
 speakers 0-4 (QSC K12.2 powered), washes 0-8 (Chauvet COLORado LED wash), days 1-7, operatorHours 0-24.
-Each step text is at most two short sentences in plain production language. Never state prices or specs.`;
+Each step text is at most two short sentences in plain production language. Never state prices or specs.
+Apply these event design principles to the room and crowd you are given:
+` + knowledgeText();
 
 const clamp = (v, lo, hi, d) => (Number.isFinite(+v) ? Math.min(hi, Math.max(lo, +v)) : d);
 
@@ -34,6 +37,7 @@ export function cleanParams(raw = {}) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
   const text = String(req.body?.text || '').slice(0, 2000);
+  const roomInfo = req.body?.room ? `\nRoom: ${JSON.stringify(req.body.room).slice(0, 500)}` : '';
   if (!CLAUDE_KEY) return res.status(200).json({ fallback: true, reason: 'no key', params: cleanParams({}) });
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -46,9 +50,9 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: process.env.CLAUDE_MODEL || 'claude-haiku-5-5',
-        max_tokens: 1200,
+        max_tokens: 1600,
         system: SYSTEM,
-        messages: [{ role: 'user', content: text || 'A small festival stage with a scrim hologram effect.' }],
+        messages: [{ role: 'user', content: (text || 'A small festival stage with a scrim hologram effect.') + roomInfo }],
       }),
     });
     const j = await r.json();
@@ -59,7 +63,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       params: cleanParams(parsed.params),
       summary: String(parsed.summary || ''),
-      steps: Array.isArray(parsed.steps) ? parsed.steps.slice(0, 8).map((s) => ({ title: String(s.title || ''), text: String(s.text || '') })) : [],
+      steps: Array.isArray(parsed.steps) ? parsed.steps.slice(0, 12).map((s) => ({ title: String(s.title || ''), text: String(s.text || '') })) : [],
       software: parsed.software || null,
     });
   } catch (e) {
