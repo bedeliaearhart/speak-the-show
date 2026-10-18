@@ -7,7 +7,7 @@ const WORKSPACE = process.env.ANTHROPIC_WORKSPACE_ID || 'wrkspc_016hBkfHDyJoWCTF
 // so Claude chooses quantities and explains, never prices or specs.
 const SYSTEM = `You are an A2 and technical director helping plan a small indoor festival stage
 with a scrim hologram effect (front projection onto a gauze, performers behind it, black backdrop).
-Return ONLY JSON, no prose, in this shape:
+Call the plan_show tool once. Its input follows this example:
 {"params":{"decksWide":2,"decksDeep":2,"deckHeightM":0.61,"speakers":2,"washes":4,"scrim":true,"projector":true,"days":2,"operatorHours":8},
  "summary":"one sentence",
  "steps":[{"title":"Concept","text":"..."},{"title":"What you need","text":"..."},{"title":"Size and time","text":"..."},{"title":"Cables","text":"..."},{"title":"How it connects","text":"..."},{"title":"Cable paths","text":"..."},{"title":"Ingress and egress","text":"..."},{"title":"Queues","text":"..."},{"title":"Tech booth","text":"..."},{"title":"Software","text":"..."}],
@@ -17,6 +17,30 @@ speakers 0-4 (QSC K12.2 powered), washes 0-8 (Chauvet COLORado LED wash), days 1
 Each step text is at most two short sentences in plain production language. Never state prices or specs.
 Apply these event design principles to the room and crowd you are given:
 ` + knowledgeText();
+
+
+// Forced tool output: the API validates the shape, so stray quotes in the prose cannot break parsing.
+const PLAN_TOOL = {
+  name: 'plan_show',
+  description: 'Return the stage quantities and the walkthrough for this show.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      params: {
+        type: 'object',
+        properties: {
+          decksWide: { type: 'integer' }, decksDeep: { type: 'integer' }, deckHeightM: { type: 'number' },
+          speakers: { type: 'integer' }, washes: { type: 'integer' }, scrim: { type: 'boolean' }, projector: { type: 'boolean' },
+          days: { type: 'integer' }, operatorHours: { type: 'integer' },
+        },
+      },
+      summary: { type: 'string' },
+      steps: { type: 'array', items: { type: 'object', properties: { title: { type: 'string' }, text: { type: 'string' } }, required: ['title', 'text'] } },
+      software: { type: 'object', properties: { pick: { type: 'string' }, why: { type: 'string' } } },
+    },
+    required: ['params', 'summary', 'steps'],
+  },
+};
 
 const clamp = (v, lo, hi, d) => (Number.isFinite(+v) ? Math.min(hi, Math.max(lo, +v)) : d);
 
@@ -52,14 +76,14 @@ export default async function handler(req, res) {
         model: process.env.CLAUDE_MODEL || 'claude-haiku-5-5',
         max_tokens: 1600,
         system: SYSTEM,
+        tools: [PLAN_TOOL],
+        tool_choice: { type: 'tool', name: 'plan_show' },
         messages: [{ role: 'user', content: (text || 'A small festival stage with a scrim hologram effect.') + roomInfo }],
       }),
     });
     const j = await r.json();
     if (!r.ok) return res.status(200).json({ fallback: true, reason: j?.error?.message || `HTTP ${r.status}`, params: cleanParams({}) });
-    const raw = (j.content || []).map((c) => c.text || '').join('');
-    const m = raw.match(/\{[\s\S]*\}/);
-    const parsed = m ? JSON.parse(m[0]) : {};
+    const parsed = (j.content || []).find((c) => c.type === 'tool_use')?.input || {};
     return res.status(200).json({
       params: cleanParams(parsed.params),
       summary: String(parsed.summary || ''),
