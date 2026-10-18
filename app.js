@@ -208,14 +208,27 @@ export async function planShow(text) {
 window.planShow = planShow;
 
 $('plan').onclick = () => planShow($('concept').value);
+// Talk: tap to start listening, tap again to stop and plan.
+let sr = null, heard = '';
 $('talk').onclick = () => {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { $('status').textContent = 'No speech recognition in this browser. Type the show and tap Plan it.'; return; }
-  const sr = new SR();
-  sr.lang = 'en-US';
-  sr.onresult = (e) => { $('concept').value = e.results[0][0].transcript; planShow($('concept').value); };
+  if (sr) { sr.stop(); return; }
+  sr = new SR();
+  sr.lang = 'en-US'; sr.continuous = true; sr.interimResults = true;
+  heard = '';
+  sr.onresult = (e) => {
+    heard = Array.from(e.results).map((r) => r[0].transcript).join(' ');
+    $('concept').value = heard;
+  };
   sr.onerror = (e) => { $('status').textContent = 'Mic error: ' + e.error; };
-  $('status').textContent = 'Listening...';
+  sr.onend = () => {
+    sr = null;
+    $('talk').textContent = 'Talk';
+    if (heard.trim()) planShow(heard);
+  };
+  $('talk').textContent = 'Stop';
+  $('status').textContent = 'Listening. Tap Stop when you finish.';
   sr.start();
 };
 

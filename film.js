@@ -1,7 +1,7 @@
 // Film mode: a step-by-step shot guide for a sub-one-minute demo video, shown on the phone.
 const STEPS = [
-  { t: '0:00', go: null, say: 'Start screen recording with the mic on. iPhone: Control Center, Screen Recording, hold for Microphone. Android: Quick Settings, Screen record.' },
-  { t: '0:03', go: 'voice', say: 'Tap "Start a call" (bottom right) and say: "A small festival stage with a scrim hologram, two speakers, four washes, two days."' },
+  { t: '0:00', go: 'capStart', say: 'Start screen recording with the mic on. iPhone: Control Center, Screen Recording, hold for Microphone. Android: Quick Settings, Screen record. Then tap Capture the room and take the five photos.' },
+  { t: '0:03', go: 'voice', say: 'Tap Talk and say: "A small festival stage with a scrim hologram, two speakers, four washes, two days." Tap Stop. Or tap Call the A2 and talk to the ElevenLabs agent.' },
   { t: '0:12', go: 'total', say: 'Let the A2 answer. Scroll slowly past the budget and the checks.' },
   { t: '0:20', go: 'mv', say: 'Tap Specs. Drag the 3D stage around once so the labels show.' },
   { t: '0:28', go: 'mv', say: 'Tap the AR icon. Put the back edge of the red disc on your tape, twist to the arrow, walk to the scrim.' },

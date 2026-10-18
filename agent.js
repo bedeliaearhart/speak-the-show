@@ -10,3 +10,11 @@ if (widget) {
     };
   });
 }
+
+// The widget stays hidden until the A2 button opens it, so it never covers the page.
+const btn = document.getElementById('a2Btn');
+if (btn && widget) btn.onclick = () => {
+  const open = widget.style.display === 'none';
+  widget.style.display = open ? '' : 'none';
+  btn.textContent = open ? 'Hide the A2' : 'Call the A2 (ElevenLabs)';
+};

@@ -83,7 +83,8 @@
       <button id="plan" class="secondary">Plan it</button>
     </div>
     <div id="status">Tap Talk and describe the show, or edit the text and tap Plan it.</div>
-    <div id="voice" class="sub" style="margin-top:8px">Or talk it through with the ElevenLabs A2 (bottom right).</div>
+    <div class="btns" style="margin-top:8px"><button id="a2Btn" class="secondary">Call the A2 (ElevenLabs)</button></div>
+    <div id="voice" class="sub">Talk: tap to start, tap again to stop. Or call the A2 voice agent.</div>
   </section>
 
   <section>
@@ -164,7 +165,7 @@
   </section>
 </main>
 <script type="module" src="/app.js"></script>
-<elevenlabs-convai agent-id="agent_4101m565gjf0f6zv6sxqm6cxqqm7"></elevenlabs-convai>
+<elevenlabs-convai id="a2" agent-id="agent_4101m565gjf0f6zv6sxqm6cxqqm7" style="display:none"></elevenlabs-convai>
 <script src="https://unpkg.com/@elevenlabs/convai-widget-embed@0.20.0/dist/index.js" async type="text/javascript"></script>
 <script type="module" src="/agent.js"></script>
 <script type="module" src="/film.js"></script>
