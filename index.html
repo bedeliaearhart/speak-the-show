@@ -58,7 +58,15 @@
 </header>
 <main>
   <section class="wide">
-    <h2>1. Describe the show</h2>
+    <h2>1. Capture the room</h2>
+    <div class="btns"><button id="capStart">Capture the room</button></div>
+    <div id="capture" hidden>
+      <div id="capStep" style="margin:8px 0"></div>
+      <input id="capFile" type="file" accept="image/*" capture="environment" hidden>
+      <div class="btns"><button id="capShoot">Take photo</button><button id="capSend" class="secondary" hidden>Read the room</button></div>
+      <div id="capOut" class="sub" style="margin-top:8px"></div>
+    </div>
+    <h2 style="margin-top:12px">2. Describe the show</h2>
     <textarea id="concept">A small festival stage with a scrim hologram effect, two powered speakers and four LED washes, for a two-day event.</textarea>
     <div class="row">
       <div><label>Room width (m)</label><input id="widthM" type="number" step="0.1" value="12"></div>
@@ -104,7 +112,7 @@
   </section>
 
   <section class="wide">
-    <h2>2. Walkthrough</h2>
+    <h2>3. Walkthrough</h2>
     <div id="summary" class="muted"></div>
     <ol id="steps" class="steps"></ol>
   </section>
@@ -149,6 +157,7 @@
       <li>Cable lengths come from the layout plus 20 percent slack, rounded up to stock lengths.</li>
       <li>3D shapes are simplified stand-ins at true size. Photoreal models need the makers' 3D files.</li>
       <li>Claude picks quantities and writes the walkthrough. Every number comes from the catalog.</li>
+      <li>Room sizes from photos are rough estimates. Confirm them with a tape measure.</li>
       <li>Design notes are general production practice for a TD to review. The local fire marshal and a qualified rigger have the final say.</li>
       <li>The ElevenLabs voice agent passes your words to the same planner as the Plan button.</li>
     </ul>
@@ -159,5 +168,6 @@
 <script src="https://unpkg.com/@elevenlabs/convai-widget-embed@0.20.0/dist/index.js" async type="text/javascript"></script>
 <script type="module" src="/agent.js"></script>
 <script type="module" src="/film.js"></script>
+<script type="module" src="/capture.js"></script>
 </body>
 </html>
