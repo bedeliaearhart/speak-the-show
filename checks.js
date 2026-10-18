@@ -1,6 +1,6 @@
 // Layout, checks, cables and budget for a small scrim-hologram stage.
 // Coordinates: meters from the spike mark (front center of the stage).
-// x = stage right positive, y = upstage positive (audience is negative y), z = up from the floor.
+// x = house right (audience right) positive, y = upstage positive (audience is negative y), z = up from the floor.
 import { CATALOG } from './catalog.js';
 
 export const SQFT_M2 = 0.092903;
@@ -123,17 +123,23 @@ export function layout(params = DEFAULT_PARAMS, room = DEFAULT_ROOM) {
   const proj = CATALOG.projector;
   const [throwLo] = throwRange(imageW, proj.throwMin, proj.throwMax);
   if (p.projector) {
+    items.push({ id: 'stand', label: 'Projector table', x: 0, y: -throwLo, z: 0, w: 0.9, d: 0.75, h: 1.0 });
     items.push({ id: 'projector', label: 'Projector', x: 0, y: -throwLo, z: 1.0, w: proj.w, d: proj.d, h: proj.h });
     items.push({ id: 'foh', label: 'FOH table (media server, mixer)', x: 1.2, y: -throwLo, z: 0, w: 1.8, d: 0.75, h: 0.75 });
   }
+  // Speakers on tripod stands (pole from the floor to the cabinet), pairs stepped back 1.2 m.
   for (let i = 0; i < p.speakers; i++) {
     const sx = i % 2 === 0 ? -1 : 1;
-    items.push({ id: 'speaker', label: 'Speaker', x: sx * (W / 2 + 0.8), y: 0.2, z: 1.2, w: 0.36, d: 0.35, h: 0.6 });
+    const sy = 0.2 + 1.2 * Math.floor(i / 2);
+    items.push({ id: 'stand', label: 'Speaker stand', x: sx * (W / 2 + 0.8), y: sy, z: 0, w: 0.05, d: 0.05, h: 1.2 });
+    items.push({ id: 'speaker', label: 'Speaker', x: sx * (W / 2 + 0.8), y: sy, z: 1.2, w: 0.36, d: 0.35, h: 0.6 });
   }
+  // LED washes sit on the deck along each side, upstage of the scrim, spread evenly.
+  const rows = Math.max(1, Math.ceil(p.washes / 2));
   for (let i = 0; i < p.washes; i++) {
     const sx = i % 2 === 0 ? -1 : 1;
-    const yy = D * (0.5 + 0.3 * Math.floor(i / 2));
-    items.push({ id: 'wash', label: 'LED wash', x: sx * (W / 2 + 0.3), y: Math.min(yy, D - 0.3), z: H0, w: 0.25, d: 0.2, h: 0.3 });
+    const yy = 0.6 + (D - 0.9) * (Math.floor(i / 2) + 0.5) / rows;
+    items.push({ id: 'wash', label: 'LED wash', x: sx * (W / 2 - 0.2), y: yy, z: H0, w: 0.25, d: 0.2, h: 0.3 });
   }
   return { items, W, D, H0, imageW, imageH, top, throwLo, params: p, room };
 }

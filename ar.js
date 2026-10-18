@@ -12,6 +12,7 @@ const MATS = {
   foh: { color: 0x2b2b2b, roughness: 0.8, metalness: 0.1 },
   speaker: { color: 0x151515, roughness: 0.75, metalness: 0.05 },
   wash: { color: 0x202020, roughness: 0.4, metalness: 0.6 },
+  stand: { color: 0x2a2a2a, roughness: 0.5, metalness: 0.7 },
 };
 
 function box(it, opts = {}) {
@@ -105,7 +106,7 @@ export function buildScene(show) {
   const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.4, 3),
     new THREE.MeshStandardMaterial({ color: 0xff0033, emissive: 0x550000 }));
   arrow.rotation.x = -Math.PI / 2;
-  arrow.position.set(0, 0.02, -0.25 + 0.15);
+  arrow.position.set(0, 0.13, 0.5);
   arrow.name = 'Upstage arrow';
   scene.add(spike, arrow);
   scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 0.6));

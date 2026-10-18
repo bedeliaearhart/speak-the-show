@@ -39,7 +39,7 @@ function ring(it) {
 
 const COLORS = {
   deck: [70, 70, 70], truss: [190, 190, 190], scrim: [255, 255, 255, 0.35], backdrop: [10, 10, 10],
-  projector: [40, 110, 255], foh: [120, 80, 40], speaker: [20, 20, 20], wash: [255, 140, 0], floor: [0, 229, 255, 0.15],
+  projector: [40, 110, 255], foh: [120, 80, 40], speaker: [20, 20, 20], wash: [255, 140, 0], stand: [60, 60, 60], floor: [0, 229, 255, 0.15],
 };
 
 async function initArcgis(container, statusEl, cfg) {
@@ -72,7 +72,7 @@ function drawArcgis(show) {
   for (const it of items) {
     const z = floorZ + it.z;
     layer.add(new Graphic({
-      geometry: { type: 'polygon', hasZ: true, rings: [ring(it).map(([lon, lat]) => [lon, lat, z])], spatialReference: { wkid: 4326 } },
+      geometry: { type: 'polygon', hasZ: true, rings: [ring(it).reverse().map(([lon, lat]) => [lon, lat, z])], spatialReference: { wkid: 4326 } },
       symbol: { type: 'polygon-3d', symbolLayers: [{ type: 'extrude', size: Math.max(it.h, 0.02), material: { color: COLORS[it.id] || [150, 150, 150] } }] },
       attributes: { label: it.label || 'Floor 2 slab' },
     }));
@@ -91,9 +91,11 @@ function loadMapLibre() {
     const css = document.createElement('link');
     css.rel = 'stylesheet'; css.href = ML + 'maplibre-gl.css';
     document.head.appendChild(css);
+    // Hide the ArcGIS AMD loader so MapLibre's UMD build sets window.maplibregl.
+    const amd = window.define; window.define = undefined;
     const s = document.createElement('script');
-    s.src = ML + 'maplibre-gl.js'; s.onload = resolve;
-    s.onerror = () => reject(new Error('MapLibre failed to load'));
+    s.src = ML + 'maplibre-gl.js'; s.onload = () => { window.define = amd; resolve(); };
+    s.onerror = () => { window.define = amd; reject(new Error('MapLibre failed to load')); };
     document.head.appendChild(s);
   });
 }

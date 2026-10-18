@@ -13,8 +13,12 @@ $('address').textContent = `${SITE.site.name}, ${SITE.site.address} · ${SITE.bu
 let mapReady = initMap($('map'), $('mapStatus')).then(() => true).catch((e) => { $('mapStatus').textContent = 'Map: ' + e.message; return null; });
 
 function room() {
-  const n = (id) => parseFloat($(id).value);
-  return { widthM: n('widthM'), frontDepthM: n('frontDepthM'), ceilingM: n('ceilingM'), floorElevationM: n('floorElevationM') };
+  const out = {};
+  for (const id of ['widthM', 'frontDepthM', 'ceilingM', 'floorElevationM']) {
+    const v = parseFloat($(id).value);
+    if (Number.isFinite(v) && v > 0) out[id] = v;
+  }
+  return out;
 }
 
 function renderChecks(show) {
@@ -112,13 +116,16 @@ export async function planShow(text) {
   try {
     plan = await (await fetch('/api/plan', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) })).json();
   } catch (e) { plan = { fallback: true, reason: e.message }; }
-  const show = buildShow({ ...plan.params, ambientLux: parseFloat($('ambientLux').value) }, room());
+  const lux = parseFloat($('ambientLux').value);
+  const show = buildShow({ ...plan.params, ...(Number.isFinite(lux) ? { ambientLux: lux } : {}) }, room());
   renderChecks(show); renderBudget(show); renderCables(show); renderFlow(show); renderPlan2d(show); renderSoftware(plan.software);
   $('summary').textContent = plan.summary || (plan.fallback ? `Default stage shown (${plan.reason}).` : '');
   $('steps').innerHTML = (plan.steps || []).map((s) => `<li><b>${esc(s.title)}:</b> ${esc(s.text)}</li>`).join('');
+  const oldSrc = $('mv').src;
   $('mv').src = await toGlbUrl(show);
+  if (oldSrc && oldSrc.startsWith('blob:')) URL.revokeObjectURL(oldSrc);
   renderHotspots(show);
-  if (await mapReady) drawShow(show);
+  mapReady.then((ok) => ok && drawShow(show));
   $('status').textContent = `Planned: ${show.items.length} pieces, ${money(show.budget.low)} to ${money(show.budget.high)} plus quotes.`;
   const reds = show.checks.filter((c) => c.status === 'red').map((c) => c.name);
   return `Planned a ${show.W.toFixed(1)} by ${show.D.toFixed(1)} meter stage. Budget ${money(show.budget.low)} to ${money(show.budget.high)} plus ${show.budget.quoteOnly} quotes. ` +
